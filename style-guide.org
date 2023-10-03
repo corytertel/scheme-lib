@@ -1,0 +1,29 @@
+
+
+Functions that return only true or false (aka predicates) should be suffixed by ~?~.
+Functions that mutate values outside of their scope should be suffixed by ~!~.
+
+
+
+
+Do not use "get" to prefix a message. Simply request the data type.
+I.e. ~name~ instead of ~get-name~ when trying to get some piece of info.
+
+get is ambigous. are you telling the object to get something or are you getting something from the object
+
+
+
+the language you should be using for message names should be in english command form, as if you are speaking to the object and commanding it to do things
+
+do not prefix message names with a type, i.e. ~list-ref~ or ~hash-table-map~
+
+This couples the message to that specific type. We want code to be as generic as possible and able to polymorphism when possible. As messages are near universal, messages names should also be treated as they are near universal.
+If each message has the type in it's name, then we would need to change the method for each type that we expect. It makes code refactoring and reuse harder in the future.
+
+
+
+
+Message names should not restrict themselves to a specific behavior.
+They should not speak to how something will be done.
+This is because message names are near universal.
+Message names should be generic, but specific enough to describe the general behavior.
