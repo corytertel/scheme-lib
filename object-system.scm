@@ -1,5 +1,33 @@
 
-(load "/home/cory/Code/Scheme/lib/lib.scm")
+;; (load "/home/cory/Code/Scheme/lib/lib.scm")
+
+(module object-system-macro-time (dotted-alist? dotted-alist-car dotted-alist-cdr)
+
+(import scheme srfi-1)
+
+(define (dotted-alist? lst)
+  (cond ((null? lst) #f)
+	((not (list? (car lst))) #t)
+	(else (dotted-alist? (cdr lst)))))
+
+(define (dotted-alist-car lst)
+  (cond ((null? lst) '())
+	((not (list? (car lst))) '())
+	(else (cons (car lst) (dotted-alist-car (cdr lst))))))
+
+(define (dotted-alist-cdr lst)
+  (cond ((null? lst) '())
+	((not (list? (car lst))) lst)
+	(else (dotted-alist-cdr (cdr lst))))))
+
+(module object-system (make define-object
+			define-primitive-object
+			make-parent-predicate
+			define-message
+			define-base-message)
+
+(import scheme (chicken condition))
+(import-for-syntax object-system-macro-time)
 
 #|
 The goal is to reduce mental burden.
@@ -149,27 +177,6 @@ and that you can use make, but not using it seems like syntax sugar
 
 ;;;; Generic Messages
 
-;; https://stackoverflow.com/questions/38820187/how-to-call-other-macros-from-a-chicken-scheme-macro
-;; TODO have the macro check for boundness at macro expansion time, not at function-call time
-
-(begin-for-syntax
- (import srfi-1)
-
- (define (dotted-alist? lst)
-   (cond ((null? lst) #f)
-	 ((not (list? (car lst))) #t)
-	 (else (dotted-alist? (cdr lst)))))
-
- (define (dotted-alist-car lst)
-   (cond ((null? lst) '())
-	 ((not (list? (car lst))) '())
-	 (else (cons (car lst) (dotted-alist-car (cdr lst))))))
-
- (define (dotted-alist-cdr lst)
-   (cond ((null? lst) '())
-	 ((not (list? (car lst))) lst)
-	 (else (dotted-alist-cdr (cdr lst))))))
-
 #|
 This is used to define a function for a specific type signature.
 It handles different signatures through dispatching.
@@ -192,10 +199,18 @@ ourselves.
 
 Never modify or access something directly. Always access and modify data through the appropriate
 functions. Only modify or access data directly at it's lowest level.
+
+
+Each succeeeding definition of the same message will take precedent over the previous message
+definitions. If message call should successfully match two signatures given, the code that will
+execute will be the latest message definition. This is by design.
+If you wish to have a different message signature take precedent, then define it later.
 |#
 ;; TODO clean up
 ;; NOTE there may be an issue with dispatching over functions with different number of args
 ;; TODO error handling if dispatch doesn't exist
+;; TODO handle recursion
+;; TODO handle when there is only one arg with no pred
 (define-syntax define-message
   (ir-macro-transformer
    (lambda (exp inject compare)
@@ -210,7 +225,7 @@ functions. Only modify or access data directly at it's lowest level.
 			   (lambda (x) (k #f))
 			 (lambda () ,name))))
 		    (lambda args
-		      (error "No message signatures match the given arguments")))))
+		      (error "bad argument types - no message signatures match the given arguments" args)))))
 	    (lambda ,(let ((f (lambda (x) (if (= (length x) 1) (car x) (cadr x)))))
 		  (if (dotted-alist? params)
 		      (append (map f (dotted-alist-car params))
@@ -230,3 +245,56 @@ functions. Only modify or access data directly at it's lowest level.
 			 `(apply old-proc (append (list ,@(map f (dotted-alist-car params)))
 						  ,(f (dotted-alist-cdr params))))
 			 `(old-proc ,@(map f params))))))))))))
+
+;; This macro is for redefining built-in functions as a message.
+;; This is *completely optional* to do.
+;; It does not alter the definititon.
+;; All this macro does is make it so that if you call the built-in function different args than it
+;; expects, an error with message signature will be thrown instead of typing error.
+
+;; Add dispatching for built-in function so they throw the correct error when not called correctly.
+;; This is not a necessity for the program to run, but it makes the program's errors more semantic.
+;; If this is not done then when the function is called with the wrong signature, the default,
+;; built-in function will still be called regardless and the user will get a "wrong type" error
+;; instead of a "no matching signature" error that they should get. In both situations an error
+;; will be thrown so this is not necessary, but it helps disect where a problem is in code.
+
+;; The function must already exist for this macro to work. It is not like define-message
+;; which will work regardless of the function existing or not.
+
+;; Used when the body will just be the message name.
+
+;; TODO handle when there is only 1 arg and no predicate
+;; TODO cleanup
+(define-syntax define-base-message
+  (ir-macro-transformer
+   (lambda (exp inject compare)
+     (let ((name (caadr exp))
+	   (params (cdadr exp)))
+       `(define ,name
+	  (let ((old-proc ,name))
+	    (lambda ,(let ((f (lambda (x) (if (= (length x) 1) (car x) (cadr x)))))
+		  (if (dotted-alist? params)
+		      (append (map f (dotted-alist-car params))
+			      (f (dotted-alist-cdr params)))
+		      (map f params)))
+	      (if (and ,@(if (dotted-alist? params)
+			   (append (filter (lambda (x) (not (= (length x) 1)))
+					   (dotted-alist-car params))
+				   (if (= (length (dotted-alist-cdr params)) 1)
+				       '()
+				       (list (cons 'andmap (dotted-alist-cdr params)))))
+			   (filter (lambda (x) (not (= (length x) 1))) params)))
+		  ,(let ((f (lambda (x) (if (= (length x) 1) (car x) (cadr x)))))
+		     (if (dotted-alist? params)
+			 `(apply old-proc (append (list ,@(map f (dotted-alist-car params)))
+						  ,(f (dotted-alist-cdr params))))
+			 `(old-proc ,@(map f params))))
+		  (error
+		   "bad argument types - no message signatures match the given arguments"
+		   ,(let ((f (lambda (x) (if (= (length x) 1) (car x) (cadr x)))))
+		      (if (dotted-alist? params)
+			  `(append (list ,@(map f (dotted-alist-car params)))
+				   ,(f (dotted-alist-cdr params)))
+			  `(list ,@(map f params)))))))))))))
+)

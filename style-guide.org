@@ -27,3 +27,28 @@ Message names should not restrict themselves to a specific behavior.
 They should not speak to how something will be done.
 This is because message names are near universal.
 Message names should be generic, but specific enough to describe the general behavior.
+
+
+
+
+Any message with the prefix ~->~, like ~->integer~ and ~->string~, is a cast. They are all monadic functions that return a value which should return true for the corresponding predicate with the same name.
+
+
+
+
+
+Reserved functions (functions that aren't turned into messages):
+- cons
+- car
+- cdr
+- any variation of car and cdr
+- set!
+- set-car!
+- set-cdr!
+- define
+- and
+- or
+- not
+- equal?
+- eq?
+- eqv?

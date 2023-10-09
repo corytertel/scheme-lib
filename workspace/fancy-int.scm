@@ -64,9 +64,8 @@
 	(cons <fancy-int> _)
 	(apply make _))))
 
-(define-message (+ (fancy-int? n1) . (fancy-int? ns))
-  (chain (cons n1 ns)
-      (map ->int _)
+(define-message (+ . (fancy-int? ns))
+  (chain (map ->int ns)
       (foldr + 0 _)
       (->fancy-int _)))
 

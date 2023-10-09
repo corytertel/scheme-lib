@@ -6,6 +6,7 @@
 
 ;; (import r7rs)
 ;; (import (chicken keyword)) ;; maybe unneeded. remove?
+(import scheme)
 (import (chicken condition))
 (import srfi-1)
 (import srfi-13) ;; string utils
@@ -23,7 +24,6 @@
 ;;;; Global vars
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO should be constant
 (define unspecified)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -35,6 +35,14 @@
 ;; (load "/home/cory/Code/Scheme/lib/objects/coops.scm")
 ;; (load "/home/cory/Code/Scheme/lib/objects/coops-primitive-objects.scm")
 ;; (load "/home/cory/Code/Scheme/lib/objects/hash-table.scm")
+
+(load "/home/cory/Code/Scheme/lib/object-system.scm")
+(import object-system)
+;; For every module imported, need to provide messages for every procedure
+;; (and typing predicates if applicable)
+(load "/home/cory/Code/Scheme/lib/objects/scheme.scm")
+(load "/home/cory/Code/Scheme/lib/objects/chicken-base.scm")
+(load "/home/cory/Code/Scheme/lib/objects/chicken-condition.scm")
 
 ;; TODO create a range primitive object for srfi-196 ranges
 
